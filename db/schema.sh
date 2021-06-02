@@ -7,38 +7,38 @@ printf '===Loading Schema===\n'
 
 psql -U sprouts_admin -d sproutsdb -W << EOF
   CREATE TABLE users (
-    user_id serial PRIMARY KEY,
-    user_name VARCHAR (240) NOT NULL,
-    user_role TEXT CHECK (user_role IN ('student', 'teacher', 'parent')),
+    username VARCHAR (240) PRIMARY KEY,
+    name VARCHAR (240) NOT NULL,
+    role TEXT CHECK (role IN ('student', 'teacher', 'parent')),
     created_at TIMESTAMP default current_timestamp NOT NULL,
     last_login TIMESTAMP
   );
 
   CREATE TABLE students (
-    user_id serial PRIMARY KEY, 
+    username VARCHAR (240) PRIMARY KEY, 
     val_responsibility JSONB
   );
 
   CREATE TABLE adults (
-    user_id serial PRIMARY KEY,
+    username VARCHAR (240) PRIMARY KEY,
     dependents JSONB
   );
 
   CREATE OR REPLACE FUNCTION add_to_table() RETURNS trigger AS \$\$
     BEGIN 
       IF (TG_OP = 'INSERT') THEN 
-        IF (NEW.user_role = 'student') THEN
-          INSERT INTO students (user_id)
-          VALUES (NEW.user_id);
-        ELSIF (NEW.user_role = 'parent' OR NEW.user_role ='teacher') THEN
-          INSERT INTO adults (user_id)
-          VALUES (NEW.user_id);
+        IF (NEW.role = 'student') THEN
+          INSERT INTO students (username)
+          VALUES (NEW.username);
+        ELSIF (NEW.role = 'parent' OR NEW.role ='teacher') THEN
+          INSERT INTO adults (username)
+          VALUES (NEW.username);
         END IF;
       ELSIF (TG_OP = 'DELETE') THEN
-        IF (OLD.user_role = 'student') THEN
-          DELETE FROM students WHERE user_id = OLD.user_id;
-        ELSIF (NEW.user_role = 'parent' OR NEW.user_role ='teacher') THEN
-          DELETE FROM adults WHERE user_id = OLD.user_id;
+        IF (OLD.role = 'student') THEN
+          DELETE FROM students WHERE username = OLD.username;
+        ELSIF (NEW.role = 'parent' OR NEW.role ='teacher') THEN
+          DELETE FROM adults WHERE username = OLD.username;
         END IF;
       END IF;
       RETURN NULL;
@@ -46,7 +46,7 @@ psql -U sprouts_admin -d sproutsdb -W << EOF
   \$\$ LANGUAGE 'plpgsql';
 
 
-  CREATE TRIGGER add_user_data 
+  CREATE TRIGGER add_data 
     AFTER INSERT OR DELETE ON users
     FOR EACH ROW
     EXECUTE PROCEDURE add_to_table(); 

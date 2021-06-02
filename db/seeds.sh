@@ -6,29 +6,29 @@
 printf '===Seeding Data: Users===\n'
 
 psql -U sprouts_admin -d sproutsdb << EOF
-  INSERT INTO users (user_id, user_name, user_role) 
+  INSERT INTO users (username, name, role) 
     VALUES 
-      ('123', 'john doe', 'teacher'),
-      ('321', 'sarah lee', 'parent'),
-      ('456', 'ryan tan', 'student'),
-      ('789', 'valerie lim', 'student');
+      ('john_doe', 'john doe', 'teacher'),
+      ('sarah_lee', 'sarah lee', 'parent'),
+      ('ryan_tan', 'ryan tan', 'student'),
+      ('valerie_lim', 'valerie lim', 'student');
 
   UPDATE students 
   SET val_responsibility = 
   '[
     { 
-      "img_key": "456/responsibility/0.jpg", 
+      "img_key": "ryan_tan/responsibility/0.jpg", 
       "text": "Look this person is so responsible watering plants"
     }, 
     {
-      "img_key": "456/responsibility/1.jpg", 
+      "img_key": "ryan_tan/responsibility/1.jpg", 
       "text": "We are saving the earth!!"
     },
     {
-      "img_key": "456/responsibility/2.jpg", 
+      "img_key": "ryan_tan/responsibility/2.jpg", 
       "text": "Everybody cleaning up yay"
     }
-  ]' WHERE user_id = '456';
+  ]' WHERE username = 'ryan_tan';
 
 EOF
 

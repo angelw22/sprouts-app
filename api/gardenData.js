@@ -13,10 +13,12 @@ aws.config.update({
 
 const gardenData = app => {
   app.post('/api/studentdata', (req, response) => {   
-    let text = `SELECT val_responsibility FROM students WHERE user_id = '${parseInt(req.body.user_id)}';`
+    let text = `SELECT val_responsibility FROM students WHERE username = '${req.body.username.toString()}';`
+    console.log(text);
     pgClient.query(text)
     .then(dbResponse => {
       gardenLengths.val_responsibility = dbResponse.rows[0].val_responsibility.length;
+      
       response.status(200).json(dbResponse.rows[0])
     }).catch(e => {
       response.status(200).send({ ok: false });
@@ -25,23 +27,24 @@ const gardenData = app => {
   })
 
   app.post('/api/studentupload', (req, res) => {
-    let uploadData = JSON.stringify({ text: req.body.text, img_key: gardenLengths.val_responsibility.length});
-    // console.log('received upload data, is ', data)
-    let uploadText = `UPDATE students SET val_responsibility = val_responsibility || ${uploadData}::jsonb WHERE user_id = ${req.body.user_id};`
-
     const s3 = new aws.S3();  // Create a new instance of S3
     const S3_BUCKET = process.env.sproutsbucket;
     const fileName = gardenLengths.val_responsibility.toString();
     const fileType = '.jpg';
+    let returnData;
 
     const s3Params = {
       Bucket: S3_BUCKET,
-      Key: `${req.body.user_id}/temporary/${fileName}${fileType}`,
+      Key: `${req.body.username}/responsibility/${fileName}${fileType}`,
       Expires: 500,
       ContentType: fileType,
       ContentEncoding: 'base64',
       ACL: 'private',
     };
+
+    let uploadData = JSON.stringify({ text: req.body.text, img_key: `${req.body.username}/responsibility/${fileName}${fileType}`});
+    console.log('received upload data, is ', uploadData)
+    let uploadText = `UPDATE students SET val_responsibility = val_responsibility || '${uploadData}'::jsonb WHERE username = '${req.body.username}';`
 
     s3.getSignedUrl('putObject', s3Params, (err, data) => {
       if(err){
@@ -49,26 +52,31 @@ const gardenData = app => {
         res.json({success: false, error: err})
       }
       // Data payload of what we are sending back, the url of the signedRequest and a URL where we can access the content after its saved. 
-      const returnData = {
+      returnData = {
         signedRequest: data,
-        url: `https://${S3_BUCKET}.s3.amazonaws.com/${req.body.user_id}/temporary/${fileName}`
+        url: `https://${S3_BUCKET}.s3.amazonaws.com/${req.body.username}/responsibility/${fileName}`
       };
       // Send it all back
-      res.json({success:true, data:{returnData}});
+      gardenLengths.val_responsibility++;
+      console.log('garden lengths, val', gardenLengths.val_responsibility)
     });
+    console.log('upload text is', uploadText);
 
     pgClient.query(uploadText)
     .then(response => {
-      response.status(200).json()
+      res.json({success:true, updateData: uploadData, returnData:returnData});
+
+      console.log('updated psql')
     }).catch(e => {
-      response.status(200).send({ ok: false });
-      console.error(e.stack)
+      console.error('cannot update psql', e.stack)
+      res.status(200).send({ ok: false });
     })
   })
 
+  //Retrieving the image for each value plant capture
   app.post('/api/gardenimage', (req, res) => {
     console.log('garden image log', req.body.img_key);
-    const s3 = new aws.S3();  // Create a new instance of S3
+    const s3 = new aws.S3(); 
     const signedUrlExpireSeconds = 60 * 1
 
     var params = {
@@ -76,20 +84,11 @@ const gardenData = app => {
       Key: req.body.img_key, 
      };
      s3.getObject(params, function(err, data) {
-       if (err) console.log(err, err.stack); // an error occurred
+       if (err) console.log(err, err.stack); 
        else {
          res.json({success: true, data: data.Body})
        }          
      });
-
-    // s3.getSignedUrl('getObject', params, (err, data) => {
-    //   if(err){
-    //     console.log(err);
-    //     res.json({success: false, error: err})
-    //   } else {
-    //     res.json({success: true, data: data.Body})
-    //   }
-    // })
 
   })
 }
